@@ -11,7 +11,9 @@ permissions:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Every push creates a sequential version. Queue runs instead of cancelling a
+  # release halfway through when another commit arrives on main.
+  cancel-in-progress: false
 
 jobs:
   prepare-release:
@@ -35,12 +37,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          latest_tag="$(git tag --list 'v[0-9]*' --sort=-v:refname | head -n 1)"
-          if [ -n "$latest_tag" ]; then
-            base="${latest_tag#v}"
-          else
-            base="$(sed -n 's/^version = "\([0-9][0-9.]*\)"/\1/p' Cargo.toml | head -n 1)"
-          fi
+          latest_tag="$(git tag --list 'v[0-9]*' --sort=-v:refname | head -n 1 | sed 's/^v//')"
+          manifest_version="$(sed -n 's/^version = "\([0-9][0-9.]*\)"/\1/p' Cargo.toml | head -n 1)"
+          # The manifest can be newer than the last tag if a previous run was
+          # interrupted after committing the version. Use the highest known
+          # version so a retry always moves forward.
+          base="$(printf '%s\n%s\n' "$latest_tag" "$manifest_version" | sed '/^$/d' | sort -V | tail -n 1)"
 
           IFS='.' read -r major minor patch <<< "$base"
           patch=$((patch + 1))
@@ -56,7 +58,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Cargo.toml Cargo.lock
-          git commit -m "chore(release): v$next"
+          # GitHub recognizes this marker and does not start a second CI run
+          # for the version-only commit, avoiding recursive releases.
+          git commit -m "chore(release): v$next [skip ci]"
           git tag "v$next"
           git push origin HEAD:main --follow-tags
 
