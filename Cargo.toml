@@ -70,6 +70,7 @@ indexmap = { version = "2", features = ["serde"] }
 # IPC for daemon/TUI split
 interprocess = { version = "2", features = ["tokio"] }
 bincode = "1"
+axum = "0.8"
 
 [profile.release]
 opt-level = "z"

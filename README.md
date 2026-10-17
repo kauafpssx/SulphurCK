@@ -113,6 +113,22 @@ O executável fica em `target/release/` (`sulphurck.exe` no Windows).
 
 ## 🧭 Uso
 
+### Painel web — recomendado para VM
+
+Na Oracle Cloud, execute o painel na própria VM e coloque-o atrás de um firewall ou reverse proxy:
+
+```bash
+# acessível apenas dentro da VM
+sulphurck web
+
+# para expor na rede: libere somente a porta necessária no firewall/regras OCI
+sulphurck web --host 0.0.0.0 --port 8080
+```
+
+Na primeira inicialização, o painel gera uma chave aleatória e a salva na configuração local do usuário. O terminal mostra a URL protegida no formato `http://host:porta/?KEY=...`; essa chave é obrigatória para a página, os assets e toda a API. Não a publique. Em uma VM exposta, use HTTPS via proxy reverso e restrinja a porta no firewall.
+
+O painel HTML/CSS/JS permite criar, listar e encerrar rotinas, além de cadastrar/remover fontes de proxy. Ele chama a mesma camada de serviços da CLI e não exige Node.js, banco de dados ou uma TUI.
+
 ```bash
 # Ver todos os comandos
 sulphurck --help

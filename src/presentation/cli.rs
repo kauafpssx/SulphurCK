@@ -69,6 +69,14 @@ enum Command {
         #[arg(long)]
         socket: Option<PathBuf>,
     },
+    /// Start the browser dashboard for routines, services and proxy sources.
+    Web {
+        /// Interface to bind; use 0.0.0.0 only behind a firewall or reverse proxy.
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+        #[arg(long, default_value_t = 8080)]
+        port: u16,
+    },
     /// Launch TUI
     Tui,
 }
@@ -381,6 +389,14 @@ pub fn run() {
         },
         Command::Daemon { socket } => {
             println!("daemon socket={:?}", socket);
+        }
+        Command::Web { host, port } => {
+            let runtime = tokio::runtime::Runtime::new()
+                .expect("the Tokio runtime should initialize on supported platforms");
+            if let Err(e) = runtime.block_on(sulphur_ck::presentation::web::serve(&host, port)) {
+                eprintln!("web server error: {e}");
+                std::process::exit(1);
+            }
         }
         Command::Tui => {
             let stats = std::sync::Arc::new(sulphur_ck::runner::Stats::default());
