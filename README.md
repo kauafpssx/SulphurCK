@@ -1,23 +1,31 @@
 <h1 align="center">⚡ SulphurCK</h1>
 
 <p align="center">
-  <strong>Um verificador HTTP leve, assíncrono e nativo para terminal.</strong><br />
-  CLI, TUI e daemon em uma única aplicação Rust.
+  <strong>O motor de configs no estilo SilverBullet/OpenBullet, reimaginado para o terminal.</strong><br />
+  CLI leve, concorrente e nativa — escrita em Rust.
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Rust-stable-DEA584?style=flat&logo=rust&logoColor=white" alt="Rust stable" />
-  <img src="https://img.shields.io/badge/Platforms-Windows%20%7C%20Linux%20%7C%20macOS-2ea44f?style=flat" alt="Windows, Linux e macOS" />
-  <img src="https://img.shields.io/badge/CLI%20%2B%20TUI-native-7c3aed?style=flat" alt="CLI e TUI nativos" />
-  <img src="https://img.shields.io/badge/license-MIT-22c55e?style=flat" alt="MIT" />
+  <a href="https://github.com/kauafpssx/SulphurCK/actions"><img src="https://github.com/kauafpssx/SulphurCK/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/kauafpssx/SulphurCK/releases"><img src="https://img.shields.io/github/v/release/kauafpssx/SulphurCK?display_name=tag&style=flat&color=7c3aed" alt="Release" /></a>
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-2ea44f?style=flat" alt="Windows, Linux e macOS" />
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/kauafpssx/SulphurCK?style=flat&color=22c55e" alt="MIT" /></a>
 </p>
 
 > [!WARNING]
 > Use apenas em sistemas, contas e endpoints para os quais você tem autorização explícita. O projeto não deve ser usado para acesso não autorizado, credential stuffing ou violação de termos de serviço.
 
+<p align="center">
+  <a href="#-compatibilidade">Compatibilidade</a> ·
+  <a href="#-instalação-rápida">Instalação</a> ·
+  <a href="#-uso">Uso</a> ·
+  <a href="#-arquitetura">Arquitetura</a> ·
+  <a href="#-qualidade-e-cicd">CI/CD</a>
+</p>
+
 ## ✨ O que ele faz
 
-SulphurCK executa fluxos HTTP descritos em `.svb`, processando uma wordlist de forma concorrente e com suporte a proxies. Foi pensado para ambientes modestos e automação legítima de testes de serviços.
+SulphurCK é um checker HTTP nativo inspirado no ecossistema **SilverBullet/OpenBullet**. Ele lê fluxos LoliScript voltados a HTTP, processa wordlists concorrentemente e opera inteiramente pelo terminal — ideal para testes autorizados, pipelines e máquinas de poucos recursos.
 
 | Recurso | Descrição |
 | --- | --- |
@@ -27,6 +35,25 @@ SulphurCK executa fluxos HTTP descritos em `.svb`, processando uma wordlist de f
 | 📊 **Operação no terminal** | CLI para automação, TUI para acompanhamento e base para daemon/IPC. |
 | 🔔 **Resultados** | Hits estruturados, saída em arquivo e webhook opcional. |
 | 🖥️ **Multiplataforma** | Build nativo e teste contínuo em Windows, Linux e macOS. |
+
+## 🧩 Compatibilidade
+
+SulphurCK prioriza o formato de configuração conhecido por usuários de **SilverBullet** e **OpenBullet**, sem copiar interface gráfica ou depender de navegador.
+
+| Arquivo/origem | Status | Observação |
+| --- | --- | --- |
+| SilverBullet `.svb` | ✅ | Lê `[SETTINGS]` e `[SCRIPT]`. |
+| OpenBullet / SilverBullet `.loli` | ✅ | Aceita LoliScript puro, sem seções, com configurações padrão. |
+| Blocos HTTP | ✅ | `REQUEST`, `KEYCHECK`, `PARSE`, `FUNCTION`, `UTILITY` e `TCP`. |
+| Browser, Selenium, OCR e CAPTCHA | ❌ | Fora de escopo: SulphurCK é deliberadamente HTTP-only. |
+
+Antes de rodar uma configuração importada, valide-a:
+
+```bash
+sulphurck config validate minha-config.loli
+```
+
+Blocos não implementados são identificados no log e ignorados; isso evita afirmar compatibilidade completa quando uma configuração depende de automação de navegador.
 
 ## 🚀 Instalação rápida
 
@@ -47,7 +74,7 @@ Baixe o pacote da sua plataforma na página de Releases, extraia-o e execute:
 Pré-requisito: [Rust stable](https://rustup.rs/) com `cargo`.
 
 ```bash
-git clone <URL_DO_SEU_REPOSITORIO>
+git clone https://github.com/kauafpssx/SulphurCK.git
 cd SulphurCK
 cargo run -- --help
 ```

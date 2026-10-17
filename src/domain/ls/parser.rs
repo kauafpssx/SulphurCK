@@ -16,20 +16,26 @@ static FIRST_TOKEN: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"^!?(#[^ ]* )?([^ ]*)").expect("FIRST_TOKEN must be a valid regular expression")
 });
 
-/// Parse a full .svb file (SETTINGS + SCRIPT sections).
+/// Parses a SilverBullet/OpenBullet config or a raw LoliScript file.
+///
+/// Configs with `[SETTINGS]` and `[SCRIPT]` use their embedded metadata. A
+/// section-less `.loli` file is treated as raw script and receives defaults.
 pub fn parse_svb(text: &str) -> anyhow::Result<SvbConfig> {
     let mut settings_json = String::new();
     let mut script = String::new();
     let mut section = String::new();
+    let mut has_sections = false;
 
     for line in text.lines() {
         let trimmed = line.trim();
         if trimmed == "[SETTINGS]" {
             section = "SETTINGS".into();
+            has_sections = true;
             continue;
         }
         if trimmed == "[SCRIPT]" {
             section = "SCRIPT".into();
+            has_sections = true;
             continue;
         }
         match section.as_str() {
@@ -50,6 +56,10 @@ pub fn parse_svb(text: &str) -> anyhow::Result<SvbConfig> {
     } else {
         serde_json::from_str(&settings_json)?
     };
+
+    if !has_sections {
+        script = text.to_string();
+    }
 
     Ok(SvbConfig { settings, script })
 }
@@ -514,5 +524,14 @@ HEADER "Accept: text/html""#;
         } else {
             panic!("expected Keycheck");
         }
+    }
+
+    #[test]
+    fn parses_sectionless_loliscript_with_default_settings() {
+        let config = parse_svb("REQUEST GET \"https://example.com\"")
+            .expect("raw LoliScript should be accepted");
+
+        assert!(config.settings.name.is_empty());
+        assert_eq!(parse_script(&config.script).len(), 1);
     }
 }

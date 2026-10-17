@@ -73,7 +73,7 @@ pub async fn send_request(path: &PathBuf, req: &IpcRequest) -> anyhow::Result<Ip
 }
 
 /// Start a Unix-socket listener; returns the path.
-pub async fn serve<F, Fut>(_path: &PathBuf, handler: F) -> anyhow::Result<()>
+pub async fn serve<F, Fut>(path: &PathBuf, handler: F) -> anyhow::Result<()>
 where
     F: Fn(IpcRequest) -> Fut + Send + Sync + 'static,
     Fut: std::future::Future<Output = IpcResponse> + Send + 'static,
@@ -95,6 +95,8 @@ where
     }
     #[cfg(windows)]
     {
+        // The Windows implementation uses loopback TCP instead of a Unix path.
+        let _ = path;
         // Windows fallback: loopback TCP on a fixed port derived from username hash
         use tokio::net::TcpListener;
         let port = 38472u16; // fixed local port
