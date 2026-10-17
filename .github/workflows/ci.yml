@@ -120,6 +120,10 @@ jobs:
     if: needs.prepare-release.outputs.publish == 'true'
     runs-on: ubuntu-latest
     steps:
+      - name: Check out the release revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare-release.outputs.revision }}
       - name: Download platform binaries
         uses: actions/download-artifact@v5
         with:
