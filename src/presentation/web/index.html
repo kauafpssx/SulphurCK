@@ -1,1 +1,40 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SulphurCK</title><link rel="stylesheet" href="/assets/styles.css?KEY=__DASHBOARD_KEY__"></head><body><main><header><p>SULPHURCK / CONTROL PLANE</p><h1>Rotinas em <em>movimento.</em></h1><span>Gerencie serviços e fontes de proxy sem TUI.</span></header><section class="grid"><form id="service"><h2>Nova rotina</h2><input name="id" placeholder="nome" required><input name="config" placeholder="/config.svb" required><input name="wordlist" placeholder="/dados.txt" required><input name="bots" type="number" placeholder="Bots (SuggestedBots se vazio)"><button>Iniciar</button></form><form id="proxy"><h2>Fonte proxy</h2><select name="kind"><option>Http</option><option>Socks5</option><option>Socks4</option></select><input name="url" type="url" placeholder="https://fonte/proxies.txt" required><button>Adicionar</button></form></section><h2>Serviços ativos</h2><div id="services"></div><h2>Fontes cadastradas</h2><div id="proxies"></div><p id="notice"></p></main><script src="/assets/app.js?KEY=__DASHBOARD_KEY__"></script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07110e">
+  <title>SulphurCK · Control Plane</title>
+  <link rel="stylesheet" href="/assets/styles.css?KEY=__DASHBOARD_KEY__">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="#overview" aria-label="SulphurCK início"><span class="brand-mark">S</span><span>Sulphur<em>CK</em><small>CONTROL PLANE</small></span></a>
+      <nav aria-label="Navegação principal">
+        <button class="tab active" data-tab="overview"><span>◈</span> Visão geral</button>
+        <button class="tab" data-tab="routines"><span>↻</span> Rotinas <i id="routine-count">0</i></button>
+        <button class="tab" data-tab="proxies"><span>⌁</span> Fontes proxy <i id="proxy-count">0</i></button>
+      </nav>
+      <div class="sidebar-footer"><span class="dot"></span> Painel protegido por chave</div>
+    </aside>
+    <main class="content">
+      <header class="topbar"><div><p class="eyebrow">SULPHURCK / LIVE CONTROL</p><h1 id="page-title">Visão geral</h1></div><div class="live"><span class="dot"></span><span id="connection">Conectado</span><button class="icon-button" id="refresh" title="Atualizar dados" aria-label="Atualizar dados">↻</button></div></header>
+      <section class="panel active" data-panel="overview">
+        <div class="hero"><div><p class="eyebrow">ORQUESTRAÇÃO SIMPLIFICADA</p><h2>Suas rotinas,<br><em>sob controle.</em></h2><p>Crie, acompanhe e encerre processos. As fontes remotas de proxy são atualizadas automaticamente antes de cada execução.</p><button class="primary jump" data-target="routines">Criar nova rotina <span>→</span></button></div><div class="hero-orb" aria-hidden="true"><span></span><b>CK</b></div></div>
+        <div class="metrics"><article><p>ROTINAS ATIVAS</p><strong id="metric-services">0</strong><small>processos em execução</small></article><article><p>FONTES PROXY</p><strong id="metric-proxies">0</strong><small>listas monitoradas</small></article><article><p>ATUALIZAÇÃO</p><strong>5s</strong><small>sincronização do painel</small></article></div>
+        <section class="section-head"><div><p class="eyebrow">AGORA</p><h2>Rotinas recentes</h2></div><button class="text-button jump" data-target="routines">Ver todas →</button></section><div id="overview-services" class="list empty-state">Carregando estado dos serviços…</div>
+      </section>
+      <section class="panel" data-panel="routines">
+        <section class="section-head"><div><p class="eyebrow">EXECUÇÃO</p><h2>Rotinas</h2><p>Inicie várias rotinas independentes. Sem informar bots, a configuração usa <code>SuggestedBots</code>.</p></div></section>
+        <div class="split"><form id="service" class="card form-card"><div class="card-title"><span class="glyph">+</span><div><h3>Nova rotina</h3><p>Os caminhos são lidos pela VM.</p></div></div><label>Identificador<input name="id" placeholder="ex.: checker-principal" pattern="[a-zA-Z0-9_-]+" required></label><label>Configuração <input name="config" placeholder="/opt/sulphur/config.svb" required></label><label>Wordlist <input name="wordlist" placeholder="/opt/sulphur/dados.txt" required></label><label>Bots <input name="bots" type="number" min="1" placeholder="Padrão da configuração"></label><button class="primary" type="submit">Iniciar rotina <span>→</span></button></form><div><div class="list-title"><h3>Em execução</h3><button class="text-button" id="refresh-services">Atualizar</button></div><div id="services" class="list empty-state">Nenhuma rotina em execução.</div></div></div>
+      </section>
+      <section class="panel" data-panel="proxies">
+        <section class="section-head"><div><p class="eyebrow">REDE</p><h2>Fontes de proxy</h2><p>Cadastre uma URL por tipo. Os proxies são baixados e armazenados localmente no começo de cada rotina.</p></div></section>
+        <div class="split"><form id="proxy" class="card form-card"><div class="card-title"><span class="glyph">⌁</span><div><h3>Adicionar fonte</h3><p>Use um endpoint de texto atualizado.</p></div></div><label>Tipo<select name="kind"><option value="Http">HTTP / HTTPS</option><option value="Socks5">SOCKS5</option><option value="Socks4">SOCKS4</option></select></label><label>URL da lista<input name="url" type="url" placeholder="https://dominio/proxies.txt" required></label><button class="primary" type="submit">Salvar fonte <span>→</span></button></form><div><div class="list-title"><h3>Fontes cadastradas</h3><button class="text-button" id="refresh-proxies">Atualizar</button></div><div id="proxies" class="list empty-state">Nenhuma fonte cadastrada.</div></div></div>
+      </section><div id="toast" role="status" aria-live="polite"></div>
+    </main>
+  </div>
+  <script src="/assets/app.js?KEY=__DASHBOARD_KEY__"></script>
+</body>
+</html>
