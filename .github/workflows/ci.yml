@@ -1,0 +1,138 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prepare-release:
+    name: Prepare sequential release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      publish: ${{ steps.version.outputs.publish }}
+      revision: ${{ steps.version.outputs.revision || steps.source.outputs.revision }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Record source revision
+        id: source
+        shell: bash
+        run: echo "revision=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+      - name: Calculate, commit and tag the next version
+        id: version
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          latest_tag="$(git tag --list 'v[0-9]*' --sort=-v:refname | head -n 1)"
+          if [ -n "$latest_tag" ]; then
+            base="${latest_tag#v}"
+          else
+            base="$(sed -n 's/^version = "\([0-9][0-9.]*\)"/\1/p' Cargo.toml | head -n 1)"
+          fi
+
+          IFS='.' read -r major minor patch <<< "$base"
+          patch=$((patch + 1))
+          if [ "$patch" -eq 10 ]; then
+            patch=0
+            minor=$((minor + 1))
+          fi
+          next="$major.$minor.$patch"
+
+          sed -i -E "0,/^version = \"[0-9]+\.[0-9]+\.[0-9]+\"/s//version = \"$next\"/" Cargo.toml
+          cargo check
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Cargo.toml Cargo.lock
+          git commit -m "chore(release): v$next"
+          git tag "v$next"
+          git push origin HEAD:main --follow-tags
+
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+          echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  quality:
+    name: Quality gate
+    needs: prepare-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare-release.outputs.revision }}
+      - name: Install Rust components
+        run: rustup component add rustfmt clippy
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Lint
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Test
+        run: cargo test --all-features
+
+  build:
+    name: Build (${{ matrix.name }})
+    needs: [prepare-release, quality]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-latest
+            binary: sulphurck
+          - name: Windows
+            os: windows-latest
+            binary: sulphurck.exe
+          - name: macOS
+            os: macos-latest
+            binary: sulphurck
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare-release.outputs.revision }}
+      - name: Build release binary
+        run: cargo build --locked --release
+      - name: Smoke test CLI
+        run: cargo run --locked --release -- --help
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: sulphurck-${{ matrix.name }}
+          path: target/release/${{ matrix.binary }}
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish GitHub Release
+    needs: [prepare-release, build]
+    if: needs.prepare-release.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download platform binaries
+        uses: actions/download-artifact@v5
+        with:
+          path: dist
+      - name: Publish versioned release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.prepare-release.outputs.version }}
+        shell: bash
+        run: |
+          gh release create "v$VERSION" \
+            "dist/sulphurck-Linux/sulphurck#sulphurck-linux-x86_64" \
+            "dist/sulphurck-Windows/sulphurck.exe#sulphurck-windows-x86_64.exe" \
+            "dist/sulphurck-macOS/sulphurck#sulphurck-macos-aarch64" \
+            --title "SulphurCK v$VERSION" \
+            --generate-notes

@@ -1,0 +1,29 @@
+# Rust build output
+/target/
+
+# Runtime data and local configuration
+/hits.txt
+/data.txt
+/config.svb
+/settings.json
+/logs/
+*.log
+*.svb.user
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Editors and operating systems
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+Desktop.ini
