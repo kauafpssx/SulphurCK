@@ -129,8 +129,9 @@ enum ServiceAction {
         config: PathBuf,
         #[arg(long)]
         wordlist: PathBuf,
-        #[arg(long, default_value_t = 1)]
-        bots: u32,
+        /// Overrides SuggestedBots from the selected configuration.
+        #[arg(long)]
+        bots: Option<u32>,
         #[arg(long, default_value_t = 0)]
         max_cpm: u32,
     },
@@ -223,7 +224,7 @@ pub fn run() {
                     max_cpm,
                     max_hits: max_hits.unwrap_or(0) as u32,
                     wait_time: app.general.wait_time,
-                    bots: cli.bots.unwrap_or(1),
+                    bots: cli.bots.unwrap_or(svb.settings.suggested_bots).max(1),
                 };
 
                 if let Err(e) = runner

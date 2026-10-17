@@ -128,15 +128,23 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           path: dist
+      - name: Give release assets unique names
+        shell: bash
+        run: |
+          mkdir -p release-assets
+          cp dist/sulphurck-Linux/sulphurck release-assets/sulphurck-linux-x86_64
+          cp dist/sulphurck-Windows/sulphurck.exe release-assets/sulphurck-windows-x86_64.exe
+          cp dist/sulphurck-macOS/sulphurck release-assets/sulphurck-macos-aarch64
       - name: Publish versioned release
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.prepare-release.outputs.version }}
         shell: bash
         run: |
-          gh release create "v$VERSION" \
-            "dist/sulphurck-Linux/sulphurck#sulphurck-linux-x86_64" \
-            "dist/sulphurck-Windows/sulphurck.exe#sulphurck-windows-x86_64.exe" \
-            "dist/sulphurck-macOS/sulphurck#sulphurck-macos-aarch64" \
-            --title "SulphurCK v$VERSION" \
-            --generate-notes
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            gh release upload "v$VERSION" release-assets/* --clobber
+          else
+            gh release create "v$VERSION" release-assets/* \
+              --title "SulphurCK v$VERSION" \
+              --generate-notes
+          fi

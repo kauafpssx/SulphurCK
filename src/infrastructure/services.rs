@@ -42,7 +42,7 @@ pub fn start(
     id: String,
     config: &Path,
     wordlist: &Path,
-    bots: u32,
+    bots: Option<u32>,
     max_cpm: u32,
 ) -> anyhow::Result<ServiceRecord> {
     let mut records = list()?;
@@ -61,14 +61,15 @@ pub fn start(
         .arg(config)
         .arg("--wordlist")
         .arg(wordlist)
-        .arg("--bots")
-        .arg(bots.to_string())
         .arg("run")
         .arg("--max-cpm")
         .arg(max_cpm.to_string())
         .stdin(Stdio::null())
         .stdout(Stdio::from(output.try_clone()?))
         .stderr(Stdio::from(output));
+    if let Some(bots) = bots {
+        command.arg("--bots").arg(bots.to_string());
+    }
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;

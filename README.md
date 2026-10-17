@@ -70,14 +70,14 @@ sulphurck proxy refresh
 Para manter mais de uma execução sem TUI, use serviços nomeados:
 
 ```bash
-sulphurck service start loja-a --config loja-a.svb --wordlist dados-a.txt --bots 4
+sulphurck service start loja-a --config loja-a.svb --wordlist dados-a.txt
 sulphurck service start loja-b --config loja-b.loli --wordlist dados-b.txt --bots 2
 sulphurck service list
 sulphurck service logs loja-a
 sulphurck service stop loja-a
 ```
 
-Cada serviço recebe PID e log próprio. As fontes e o cache ficam no diretório de dados local do sistema, fora do repositório.
+Cada serviço recebe PID e log próprio. Sem `--bots`, o serviço usa `SuggestedBots` da configuração SilverBullet/OpenBullet; use `--bots` somente para sobrescrever. Sem `--proxies`, todo serviço usa todas as fontes remotas ativas, atualizadas antes de iniciar. As fontes e o cache ficam no diretório de dados local do sistema, fora do repositório.
 
 ## 🚀 Instalação rápida
 
