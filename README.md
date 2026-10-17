@@ -55,6 +55,30 @@ sulphurck config validate minha-config.loli
 
 Blocos não implementados são identificados no log e ignorados; isso evita afirmar compatibilidade completa quando uma configuração depende de automação de navegador.
 
+## 🛡️ Proxies remotos e serviços
+
+Cadastre uma fonte por protocolo. O SulphurCK baixa a lista novamente antes de cada `run`, valida as entradas, atualiza o cache local e usa rotação round-robin durante a execução.
+
+```bash
+sulphurck proxy add http https://exemplo.com/http.txt
+sulphurck proxy add socks5 https://exemplo.com/socks5.txt
+sulphurck proxy add socks4 https://exemplo.com/socks4.txt
+sulphurck proxy list
+sulphurck proxy refresh
+```
+
+Para manter mais de uma execução sem TUI, use serviços nomeados:
+
+```bash
+sulphurck service start loja-a --config loja-a.svb --wordlist dados-a.txt --bots 4
+sulphurck service start loja-b --config loja-b.loli --wordlist dados-b.txt --bots 2
+sulphurck service list
+sulphurck service logs loja-a
+sulphurck service stop loja-a
+```
+
+Cada serviço recebe PID e log próprio. As fontes e o cache ficam no diretório de dados local do sistema, fora do repositório.
+
 ## 🚀 Instalação rápida
 
 ### A partir de uma release

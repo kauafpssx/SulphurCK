@@ -11,7 +11,7 @@ pub mod presentation;
 // Compatibility facade. New code should import from its architectural layer.
 pub use application::{engine, runner};
 pub use domain::{config, ls};
-pub use infrastructure::{data, hits, ipc, net, proxy, settings, webhook};
+pub use infrastructure::{data, hits, ipc, net, proxy, proxy_sources, services, settings, webhook};
 pub use presentation::tui;
 
 pub use domain::config::AppConfig;

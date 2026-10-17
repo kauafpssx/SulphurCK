@@ -1,7 +1,7 @@
 //! SulphurCK CLI entry — subcommands for run, proxy, wordlist, config, daemon.
 
 use crate as sulphur_ck;
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 use tracing_subscriber::EnvFilter;
 
@@ -48,6 +48,11 @@ enum Command {
         #[command(subcommand)]
         action: ProxyAction,
     },
+    /// Run and supervise multiple background checks without a TUI.
+    Service {
+        #[command(subcommand)]
+        action: ServiceAction,
+    },
     /// Wordlist utilities
     Wordlist {
         #[command(subcommand)]
@@ -70,6 +75,14 @@ enum Command {
 
 #[derive(Subcommand, Debug)]
 enum ProxyAction {
+    /// Register a remote list. It is refreshed before every run.
+    Add { kind: ProxySourceKind, url: String },
+    /// List registered remote sources and their state.
+    List,
+    /// Remove a remote source by its identifier.
+    Remove { id: String },
+    /// Fetch every active source now and update the local cache.
+    Refresh,
     /// Parse proxy file and print stats
     Parse { file: PathBuf },
     /// Test proxies against a URL
@@ -82,12 +95,51 @@ enum ProxyAction {
     Clean { file: PathBuf },
 }
 
+#[derive(Clone, Debug, ValueEnum)]
+enum ProxySourceKind {
+    Http,
+    Socks4,
+    Socks5,
+}
+
+impl From<ProxySourceKind> for sulphur_ck::config::ProxyKind {
+    fn from(value: ProxySourceKind) -> Self {
+        match value {
+            ProxySourceKind::Http => Self::Http,
+            ProxySourceKind::Socks4 => Self::Socks4,
+            ProxySourceKind::Socks5 => Self::Socks5,
+        }
+    }
+}
+
 #[derive(Subcommand, Debug)]
 enum WordlistAction {
     /// Deduplicate lines
     Unique { file: PathBuf },
     /// Count lines
     Count { file: PathBuf },
+}
+
+#[derive(Subcommand, Debug)]
+enum ServiceAction {
+    /// Start one named background run.
+    Start {
+        id: String,
+        #[arg(long)]
+        config: PathBuf,
+        #[arg(long)]
+        wordlist: PathBuf,
+        #[arg(long, default_value_t = 1)]
+        bots: u32,
+        #[arg(long, default_value_t = 0)]
+        max_cpm: u32,
+    },
+    /// List background runs that are currently alive.
+    List,
+    /// Stop a named background run.
+    Stop { id: String },
+    /// Print the local log file path for a background run.
+    Logs { id: String },
 }
 
 #[derive(Subcommand, Debug)]
@@ -148,10 +200,23 @@ pub fn run() {
                     sulphur_ck::settings::load(&config_path).unwrap_or_default(),
                 );
 
-                let proxy_pool = cli
-                    .proxies
-                    .as_ref()
-                    .and_then(|p| sulphur_ck::proxy::ProxyPool::load(p).ok());
+                let proxy_pool = if let Some(path) = cli.proxies.as_ref() {
+                    match sulphur_ck::proxy::ProxyPool::load(path) {
+                        Ok(pool) => Some(pool),
+                        Err(e) => {
+                            eprintln!("proxy load error: {e}");
+                            std::process::exit(1);
+                        }
+                    }
+                } else {
+                    match sulphur_ck::proxy_sources::refresh_and_load().await {
+                        Ok(pool) => pool,
+                        Err(e) => {
+                            eprintln!("managed proxy refresh error: {e}");
+                            std::process::exit(1);
+                        }
+                    }
+                };
 
                 let runner = sulphur_ck::runner::Runner::new();
                 let run_cfg = sulphur_ck::runner::RunConfig {
@@ -178,6 +243,41 @@ pub fn run() {
             });
         }
         Command::Proxy { action } => match action {
+            ProxyAction::Add { kind, url } => {
+                match sulphur_ck::proxy_sources::add(kind.into(), url) {
+                    Ok(source) => println!(
+                        "Added {:?} source {} ({})",
+                        source.kind, source.id, source.url
+                    ),
+                    Err(e) => eprintln!("proxy add error: {e}"),
+                }
+            }
+            ProxyAction::List => match sulphur_ck::proxy_sources::list() {
+                Ok(sources) if sources.is_empty() => {
+                    println!("No remote proxy sources configured.")
+                }
+                Ok(sources) => {
+                    for source in sources {
+                        println!(
+                            "{}  {:?}  active={}  {}",
+                            source.id, source.kind, source.active, source.url
+                        );
+                    }
+                }
+                Err(e) => eprintln!("proxy list error: {e}"),
+            },
+            ProxyAction::Remove { id } => match sulphur_ck::proxy_sources::remove(&id) {
+                Ok(()) => println!("Removed proxy source {id}"),
+                Err(e) => eprintln!("proxy remove error: {e}"),
+            },
+            ProxyAction::Refresh => {
+                let runtime = tokio::runtime::Runtime::new()
+                    .expect("the Tokio runtime should initialize on supported platforms");
+                match runtime.block_on(sulphur_ck::proxy_sources::refresh()) {
+                    Ok(count) => println!("Refreshed proxy cache: {count} valid proxies"),
+                    Err(e) => eprintln!("proxy refresh error: {e}"),
+                }
+            }
             ProxyAction::Parse { file } => match sulphur_ck::proxy::ProxyPool::load(&file) {
                 Ok(pool) => {
                     println!("Loaded {} proxies", pool.len());
@@ -191,6 +291,48 @@ pub fn run() {
             ProxyAction::Clean { file } => match sulphur_ck::proxy::ProxyPool::load(&file) {
                 Ok(pool) => println!("Clean: {} proxies loaded", pool.len()),
                 Err(e) => eprintln!("proxy load error: {e}"),
+            },
+        },
+        Command::Service { action } => match action {
+            ServiceAction::Start {
+                id,
+                config,
+                wordlist,
+                bots,
+                max_cpm,
+            } => match sulphur_ck::services::start(id, &config, &wordlist, bots, max_cpm) {
+                Ok(service) => println!(
+                    "Started service '{}' (pid {}). Log: {}",
+                    service.id,
+                    service.pid,
+                    service.log.display()
+                ),
+                Err(e) => eprintln!("service start error: {e}"),
+            },
+            ServiceAction::List => match sulphur_ck::services::list() {
+                Ok(services) if services.is_empty() => {
+                    println!("No SulphurCK services are running.")
+                }
+                Ok(services) => {
+                    for service in services {
+                        println!(
+                            "{}  pid={}  config={}  wordlist={}",
+                            service.id,
+                            service.pid,
+                            service.config.display(),
+                            service.wordlist.display()
+                        );
+                    }
+                }
+                Err(e) => eprintln!("service list error: {e}"),
+            },
+            ServiceAction::Stop { id } => match sulphur_ck::services::stop(&id) {
+                Ok(()) => println!("Stopped service {id}"),
+                Err(e) => eprintln!("service stop error: {e}"),
+            },
+            ServiceAction::Logs { id } => match sulphur_ck::services::log_path(&id) {
+                Ok(path) => println!("{}", path.display()),
+                Err(e) => eprintln!("service logs error: {e}"),
             },
         },
         Command::Wordlist { action } => match action {
