@@ -3,7 +3,7 @@
 
 [package]
 name = "sulphur-ck"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 description = "Multiplatform HTTP request-based checker: configs, proxies, LoliScript engine"
 license = "MIT"
